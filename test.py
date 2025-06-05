@@ -15,7 +15,7 @@ if __name__ == "__main__":
     c2 = client1.encrypt_and_send([4, 5, 6], tag)
     
     y = [[1 for j in range(vector_size)] for i in range(n_clients)] #SOMME
-    sk = FeDamgardMultiClient.keygen(y, t_server.key)
+    sk = t_server.functional_keygen(y)
     m = FeDamgardMultiClient.decrypt([c1,c2], t_server.key.get_public_key(), sk, (0, 2000))
     
     print(m)
