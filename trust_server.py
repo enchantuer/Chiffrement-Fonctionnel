@@ -15,5 +15,5 @@ class T_server:
         else:
             raise ValueError("Client ID invalide")
 
-    def derive_functional_key(self, y_vector):
-        return FeDamgardMultiClient.derive_key(y_vector, self.key.get_secret_key())
+    def functional_keygen(self, y):
+        return FeDamgardMultiClient.keygen(y, self.key)
