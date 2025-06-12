@@ -4,46 +4,131 @@ import datetime
 from typing import Any
 from mife.multiclient.damgard import FeDamgardMultiClient
 
-class ComputingServer:
-    def __init__(self, db_path='encrypted_data.db'):
-        # Connexion à la base SQLite (fichier local)
-        self.conn = sqlite3.connect(db_path)
-        self.cursor = self.conn.cursor()
-        self._create_table()
+import socket
+import threading
 
-    def _create_table(self):
+DB_FILE = 'encrypted_data.db'
+HOST = 'localhost'
+PORT = 1567
+
+class ComputingServer:
+    def __init__(self, host=HOST, port=PORT, db_path=DB_FILE):
+        # Connexion à la base SQLite (fichier local)
+        self.db_lock = threading.Lock()
+        self.conn = sqlite3.connect(db_path, check_same_thread=False)
+        self.cursor = self.conn.cursor()
+        self._init_db()
+
+        # Socket
+        self.host = host
+        self.port = port
+        # threading.Thread(target=self.start, daemon=True).start()
+
+    def start(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as srv:
+            srv.bind((self.host, self.port))
+            srv.listen()
+            print(f"[ComputeServer] listening {self.host}:{self.port} ...")
+            while True:
+                conn, _ = srv.accept()
+                threading.Thread(target=self._handle_request, args=(conn,), daemon=True).start()
+
+    def _handle_request(self, conn):
+        with conn:
+            req = pickle.loads(conn.recv(16384))
+            if req['type'] == 'ciphertext':
+                client_id = req.get('client_id')
+                tag = req.get('tag')
+                data = req.get('data')
+                try:
+                    self.save_data(client_id, tag, data)
+                except sqlite3.IntegrityError as e:
+                    conn.sendall(pickle.dumps({'status': 'error', 'message': f'The client {client_id} has already stored data with tag {tag}'}))
+                    return
+                conn.sendall(pickle.dumps({'status': 'ok'}))
+                print(f"[ComputeServer] Ciphertext stored for client {client_id} with tag {tag}.")
+                return
+
+            elif req['type'] == 'func_key':
+                pk = req.get('pk')
+                sk = req.get('sk')
+                tag = req.get('tag')
+                data = req.get('data')
+
+                print(f"[ComputerServer] Function key received.")
+
+                if data is None:
+                    print('[ComputerServer] No data received.')
+                    print(sk)
+                    try:
+                        result = self.apply_fe_key(pk, sk, tag)
+                    except Exception as e:
+                        conn.sendall(
+                            pickle.dumps({'status': 'error', 'message': 'Error while computing functional key function'}))
+                        return
+                    conn.sendall(pickle.dumps({'status': 'ok', 'result': result}))
+                    return
+
+                if data['function']:
+                    function = data['function']
+                    if function == "mean":
+                        try:
+                            result = self.mean(pk, sk, tag)
+                        except Exception as e:
+                            conn.sendall(pickle.dumps({'status': 'error', 'message': 'Error while computing mean function'}))
+                            return
+                        conn.sendall(pickle.dumps({'status': 'ok', 'result': result}))
+                        return
+                    elif function == "correlation":
+                        try:
+                            result = self.correlation(pk, sk, data['additional'], tag)
+                        except Exception as e:
+                            conn.sendall(pickle.dumps({'status': 'error', 'message': 'Error while computing correlation function'}))
+                            return
+                        conn.sendall(pickle.dumps({'status': 'ok', 'result': result}))
+                        return
+                else:
+                    conn.sendall(pickle.dumps({'status': 'error', 'message': 'unknown function'}))
+                    return
+                print("[TServer] Résultat calculé et envoyé.")
+
+    def _init_db(self):
         # Création de la table si elle n'existe pas déjà
-        self.cursor.execute('''
-            CREATE TABLE IF NOT EXISTS EncryptedData (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                client_id TEXT NOT NULL,
-                tag BLOB NOT NULL,
-                ciphertext BLOB NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                UNIQUE (client_id, tag)
-            )
-            ''')
-        self.cursor.execute('CREATE INDEX IF NOT EXISTS idx_tag ON EncryptedData(tag)')
-        self.conn.commit()
+        with self.db_lock:
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS EncryptedData (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    client_id TEXT NOT NULL,
+                    tag BLOB NOT NULL,
+                    ciphertext BLOB NOT NULL,
+                    created_at TIMESTAMP NOT NULL,
+                    UNIQUE (client_id, tag)
+                )
+                ''')
+            self.cursor.execute('CREATE INDEX IF NOT EXISTS idx_tag ON EncryptedData(tag)')
+            self.conn.commit()
+            print("[ComputeServer] Database initialized.")
 
     def close(self):
         self.conn.close()
 
     def save_data(self, client_id: str, tag: bytes, data):
         created_at = datetime.datetime.now(datetime.UTC)
-        self.cursor.execute('''
-            INSERT INTO EncryptedData (client_id, tag, ciphertext, created_at)
-            VALUES (?, ?, ?, ?)
-        ''', (client_id, tag, data, created_at))
-        self.conn.commit()
+        with self.db_lock:
+            self.cursor.execute('''
+                INSERT INTO EncryptedData (client_id, tag, ciphertext, created_at)
+                VALUES (?, ?, ?, ?)
+            ''', (client_id, tag, data, created_at))
+            self.conn.commit()
 
     def _get_data_by_tag(self, tag: bytes) -> list[Any]:
-        self.cursor.execute('''
-            SELECT ciphertext
-            FROM EncryptedData
-            WHERE tag = ?
-        ''', (tag,))
-        rows = self.cursor.fetchall()
+        with self.db_lock:
+            self.cursor.execute('''
+                SELECT ciphertext
+                FROM EncryptedData
+                WHERE tag = ?
+            ''', (tag,))
+            rows = self.cursor.fetchall()
         return [pickle.loads(data[0]) for data in rows]
 
     def apply_fe_key(self, pk, sk, tag: bytes, bound = (0, 2000)):
@@ -59,7 +144,8 @@ class ComputingServer:
         result = FeDamgardMultiClient.decrypt(data, pk, sk, bound)
         return result / len(data)
 
-    def correlation(self, pk, sks: tuple[3], mean_y, yy, tag: bytes,bound = (0, 2000)):
+    def correlation(self, pk, sks: tuple[Any, Any, Any], data: tuple[int, int], tag: bytes,bound = (0, 2000)):
+        mean_y, yy = data
         data = self._get_data_by_tag(tag)
 
         xy = FeDamgardMultiClient.decrypt(data, pk, sks[0], bound)
@@ -78,39 +164,36 @@ class ComputingServer:
 # Exemple d'utilisation
 if __name__ == "__main__":
     # Test apply fe key
-    n = 2
-    m = 3
-    key = FeDamgardMultiClient.generate(n, m)
+    # n = 2
+    # m = 3
+    # key = FeDamgardMultiClient.generate(n, m)
+    # tag = b'tag'
+
     server = ComputingServer()
-    tag = b'tag'
+    server.start()
 
-    d = FeDamgardMultiClient.encrypt([1, 2, 3], tag, key.get_enc_key(0), key.get_public_key())
-    server.save_data('client123', tag, pickle.dumps(d))
-    d = FeDamgardMultiClient.encrypt([4, 5, 6], tag, key.get_enc_key(1), key.get_public_key())
-    server.save_data('client124', tag, pickle.dumps(d))
+    # server.save_data('client124', tag, pickle.dumps(d))
 
-    y = [[1 for j in range(m)] for i in range(n)] #SOMME
-    sk = FeDamgardMultiClient.keygen(y, key)
-    print(server.apply_fe_key(key.get_public_key(), sk, tag))
+    # y = [[1 for j in range(m)] for i in range(n)] #SOMME
+    # sk = FeDamgardMultiClient.keygen(y, key)
+    # print(server.apply_fe_key(key.get_public_key(), sk, tag))
 
     # Test Mean
-    n = 4
-    m = 1
-    key = FeDamgardMultiClient.generate(n, m)
-    server = ComputingServer()
-    tag = b'tag2'
-
-    d = FeDamgardMultiClient.encrypt([1], tag, key.get_enc_key(0), key.get_public_key())
-    server.save_data('client123', tag, pickle.dumps(d))
-    d = FeDamgardMultiClient.encrypt([2], tag, key.get_enc_key(1), key.get_public_key())
-    server.save_data('client124', tag, pickle.dumps(d))
-    d = FeDamgardMultiClient.encrypt([3], tag, key.get_enc_key(2), key.get_public_key())
-    server.save_data('client125', tag, pickle.dumps(d))
-    d = FeDamgardMultiClient.encrypt([4], tag, key.get_enc_key(3), key.get_public_key())
-    server.save_data('client126', tag, pickle.dumps(d))
-
-    y = [[1 for j in range(m)] for i in range(n)] #SOMME
-    sk = FeDamgardMultiClient.keygen(y, key)
-    print(server.mean(key.get_public_key(), sk, tag))
-
-    server.close()
+    # n = 4
+    # m = 1
+    # key = FeDamgardMultiClient.generate(n, m)
+    # server = ComputingServer()
+    # tag = b'tag2'
+    #
+    # d = FeDamgardMultiClient.encrypt([1], tag, key.get_enc_key(0), key.get_public_key())
+    # server.save_data('client123', tag, pickle.dumps(d))
+    # d = FeDamgardMultiClient.encrypt([2], tag, key.get_enc_key(1), key.get_public_key())
+    # server.save_data('client124', tag, pickle.dumps(d))
+    # d = FeDamgardMultiClient.encrypt([3], tag, key.get_enc_key(2), key.get_public_key())
+    # server.save_data('client125', tag, pickle.dumps(d))
+    # d = FeDamgardMultiClient.encrypt([4], tag, key.get_enc_key(3), key.get_public_key())
+    # server.save_data('client126', tag, pickle.dumps(d))
+    #
+    # y = [[1 for j in range(m)] for i in range(n)] #SOMME
+    # sk = FeDamgardMultiClient.keygen(y, key)
+    # print(server.mean(key.get_public_key(), sk, tag))
