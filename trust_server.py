@@ -72,7 +72,7 @@ class T_server:
         return self.key.get_public_key()
         
     def ask_key(self, client_id=None):
-        if client_id is not None and 0 <= client_id < self.n_clients:  # Ajouter vérification >= 0
+        if client_id is not None and 0 <= client_id < self.n_clients:  
             return self.key.get_enc_key(client_id)
         else:
             raise ValueError(f"Client ID invalide: {client_id}")
