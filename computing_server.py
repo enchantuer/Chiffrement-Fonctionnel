@@ -55,10 +55,10 @@ class ComputingServer:
                 tag = req.get('tag')
                 data = req.get('data')
 
-                print(f"[ComputerServer] Function key received.")
+                print(f"[ComputeServer] Function key received.")
 
                 if data is None:
-                    print('[ComputerServer] No data received.')
+                    print('[ComputeServer] No data received.')
                     print(sk)
                     try:
                         result = self.apply_fe_key(pk, sk, tag)
@@ -90,7 +90,7 @@ class ComputingServer:
                 else:
                     conn.sendall(pickle.dumps({'status': 'error', 'message': 'unknown function'}))
                     return
-                print("[TServer] Résultat calculé et envoyé.")
+                print("[ComputeServer] Résultat calculé et envoyé.")
 
     def _init_db(self):
         # Création de la table si elle n'existe pas déjà

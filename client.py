@@ -60,12 +60,11 @@ class Client:
 
         return cipher
     
-    def request_result(self, tag, function, additional_data=None,):
+    def request_result(self, tag, function, additional_data=None):
         # Création de la requête pour récupéré la clé fonctionnel
         req = {
             'type': 'get_func_key',
-            'function': function,
-            'additional_data': additional_data
+            'function': function
         }
         
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as clt:
@@ -75,14 +74,12 @@ class Client:
             response = pickle.loads(clt.recv(4096))
             if response.get('status') != 'ok':
                 print("Erreur lors de la récupération de la clé depuis le serveur de confiance")
+                return
 
             sk = response.get('func_key')
             print(f"[Client {self.client_id}] Clés reçues avec succès.") 
 
         # Création de la requête pour l'envoie des données chiffrés
-        if not isinstance(function, str):
-            function = None
-
         req = {
             'type': 'func_key',
             'pk': self.pub_key,
@@ -91,7 +88,7 @@ class Client:
             'data': {
                 'function': function,
                 'additional': additional_data  
-            } if function else None
+            } if isinstance(function, str) else None
         }
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as clt:
