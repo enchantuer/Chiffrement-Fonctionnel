@@ -2,14 +2,15 @@ import pickle
 from mife.multiclient.damgard import FeDamgardMultiClient
 
 import socket
+import ssl
 
 TRUST_SERVER = ('localhost', 1560)
 COMPUTING_SERVER = ('localhost', 1567)
 
-class Client:
-    def __init__(self, client_id, trust_serveur=TRUST_SERVER, computing_server=COMPUTING_SERVER):
-        self.client_id = client_id
+CA = 'certs/ca/root.cert'
 
+class Client:
+    def __init__(self, certfile, keyfile, trust_serveur=TRUST_SERVER, computing_server=COMPUTING_SERVER, ca=CA):
         self.pub_key = None
         self.enc_key = None
 
@@ -17,24 +18,27 @@ class Client:
         self.t_server = trust_serveur
         self.c_server = computing_server
 
+        self.context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=ca)
+        self.context.load_cert_chain(certfile=certfile, keyfile=keyfile)
+        self.context.check_hostname = True
+
     def get_keys(self):
         # Création de la requête pour la réception de la clé publique du serveur de confiance et de la clé de chiffrement du client
         req = {
-            'type': 'get_keys',
-            'client_id': self.client_id
+            'type': 'get_keys'
         }
         
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as clt:
-            clt.connect(self.t_server)
-            clt.sendall(pickle.dumps(req))
+        with socket.create_connection(self.t_server) as sock:
+            with self.context.wrap_socket(sock, server_hostname=self.t_server[0]) as ssock:
+                ssock.sendall(pickle.dumps(req))
 
-            response = pickle.loads(clt.recv(16384))
-            if response.get('status') != 'ok':
-                print("Erreur lors de la récupération des clés depuis le serveur de confiance")
+                response = pickle.loads(ssock.recv(16384))
+                if response.get('status') != 'ok':
+                    print("Erreur lors de la récupération des clés depuis le serveur de confiance")
 
-            self.pub_key = response['pub_key']
-            self.enc_key = response['enc_key']
-            print(f"[Client {self.client_id}] Clés reçues avec succès.")
+                self.pub_key = response['pub_key']
+                self.enc_key = response['enc_key']
+                print(f"[Client] Clés reçues avec succès.")
 
     def encrypt_and_send(self, data, tag):
         cipher = FeDamgardMultiClient.encrypt(data, tag, self.enc_key, self.pub_key)
@@ -44,19 +48,18 @@ class Client:
         # Création de la requête pour l'envoie des données chiffrés
         req = {
             'type': 'ciphertext',
-            'client_id': self.client_id,
             'tag': tag,
             'data': pickle.dumps(cipher) 
         }
 
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as clt:
-            clt.connect(self.c_server)
-            clt.sendall(pickle.dumps(req))
+        with socket.create_connection(self.c_server) as sock:
+            with self.context.wrap_socket(sock, server_hostname=self.c_server[0]) as ssock:
+                ssock.sendall(pickle.dumps(req))
 
-            response = pickle.loads(clt.recv(4096))
-            if response.get('status') != 'ok':
-                print(f"Erreur serveur : {response.get('message')}")
-            print(f"[Client {self.client_id}] Données envoyées avec succès au serveur.")
+                response = pickle.loads(ssock.recv(4096))
+                if response.get('status') != 'ok':
+                    print(f"Erreur serveur : {response.get('message')}")
+                print(f"[Client] Données envoyées avec succès au serveur.")
 
         return cipher
     
@@ -66,18 +69,19 @@ class Client:
             'type': 'get_func_key',
             'function': function
         }
-        
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as clt:
-            clt.connect(self.t_server)
-            clt.sendall(pickle.dumps(req))
 
-            response = pickle.loads(clt.recv(4096))
-            if response.get('status') != 'ok':
-                print("Erreur lors de la récupération de la clé depuis le serveur de confiance")
-                return
 
-            sk = response.get('func_key')
-            print(f"[Client {self.client_id}] Clés reçues avec succès.") 
+        with socket.create_connection(self.t_server) as sock:
+            with self.context.wrap_socket(sock, server_hostname=self.t_server[0]) as ssock:
+                ssock.sendall(pickle.dumps(req))
+
+                response = pickle.loads(ssock.recv(4096))
+                if response.get('status') != 'ok':
+                    print("Erreur lors de la récupération de la clé depuis le serveur de confiance")
+                    return
+
+                sk = response.get('func_key')
+                print(f"[Client] Clés reçues avec succès.")
 
         # Création de la requête pour l'envoie des données chiffrés
         req = {
@@ -91,15 +95,15 @@ class Client:
             } if isinstance(function, str) else None
         }
 
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as clt:
-            clt.connect(self.c_server)
-            clt.sendall(pickle.dumps(req))
+        with socket.create_connection(self.c_server) as sock:
+            with self.context.wrap_socket(sock, server_hostname=self.c_server[0]) as ssock:
+                ssock.sendall(pickle.dumps(req))
 
-            response = pickle.loads(clt.recv(4096))
-            if response.get('status') != 'ok':
-                print(f"Erreur serveur : {response.get('message')}")
+                response = pickle.loads(ssock.recv(4096))
+                if response.get('status') != 'ok':
+                    print(f"Erreur serveur : {response.get('message')}")
 
-            result = response.get('result')
-            print(f"[Client {self.client_id}] Résultat reçu : {result}")
-            return result
+                result = response.get('result')
+                print(f"[Client] Résultat reçu : {result}")
+                return result
 

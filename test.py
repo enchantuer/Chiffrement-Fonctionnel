@@ -22,8 +22,8 @@ if __name__ == "__main__":
     time.sleep(1)
 
     # === Initialisation des deux clients ===
-    client0 = Client(0)
-    client1 = Client(1)
+    client0 = Client('certs/clients/client0.cert', 'certs/clients/client0.key')
+    client1 = Client('certs/clients/client1.cert', 'certs/clients/client1.key')
 
     client0.get_keys()
     client1.get_keys()

@@ -6,13 +6,27 @@ from mife.multiclient.damgard import FeDamgardMultiClient
 
 import socket
 import threading
+import re
+
+import ssl
 
 DB_FILE = 'encrypted_data.db'
 HOST = 'localhost'
 PORT = 1567
 
+CERTFILE = 'certs/computing_server/server.cert'
+KEYFILE = 'certs/computing_server/server.key'
+CA = 'certs/ca/root.cert'
+
+def extract_client_id(cn: str) -> str | None:
+    match = re.fullmatch(r"client_(\w+)", cn)
+    if match:
+        return match.group(1)
+    return None
+
+
 class ComputingServer:
-    def __init__(self, host=HOST, port=PORT, db_path=DB_FILE):
+    def __init__(self, host=HOST, port=PORT, db_path=DB_FILE, certfile = CERTFILE, keyfile = KEYFILE, ca = CA):
         # Connexion à la base SQLite (fichier local)
         self.db_lock = threading.Lock()
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
@@ -22,28 +36,45 @@ class ComputingServer:
         # Socket
         self.host = host
         self.port = port
-        # threading.Thread(target=self.start, daemon=True).start()
+
+        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        self.context.load_cert_chain(certfile=certfile, keyfile=keyfile)
+        self.context.load_verify_locations(ca)
+        self.context.verify_mode = ssl.CERT_REQUIRED
 
     def start(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as srv:
             srv.bind((self.host, self.port))
             srv.listen()
             print(f"[ComputeServer] listening {self.host}:{self.port} ...")
-            while True:
-                conn, _ = srv.accept()
-                threading.Thread(target=self._handle_request, args=(conn,), daemon=True).start()
+
+            with self.context.wrap_socket(srv, server_side=True) as ssock:
+                while True:
+                    conn, _ = ssock.accept()
+                    threading.Thread(target=self._handle_request, args=(conn,), daemon=True).start()
+            # while True:
+            #     conn, _ = srv.accept()
+            #     threading.Thread(target=self._handle_request, args=(conn,), daemon=True).start()
 
     def _handle_request(self, conn):
         with conn:
+            peer_cert = conn.getpeercert()
+            subject = dict(x[0] for x in peer_cert['subject'])
+            cn = subject.get('commonName')
+            client_id = extract_client_id(cn)
+            if client_id is None:
+                return
+
             req = pickle.loads(conn.recv(16384))
+            print(f"[ComputeServer] Client : {client_id}, req['type'] = {req['type']}")
             if req['type'] == 'ciphertext':
-                client_id = req.get('client_id')
                 tag = req.get('tag')
                 data = req.get('data')
                 try:
                     self.save_data(client_id, tag, data)
                 except sqlite3.IntegrityError as e:
                     conn.sendall(pickle.dumps({'status': 'error', 'message': f'The client {client_id} has already stored data with tag {tag}'}))
+                    print(f"[ComputeServer] Ciphertext already for client {client_id} with tag {tag}.")
                     return
                 conn.sendall(pickle.dumps({'status': 'ok'}))
                 print(f"[ComputeServer] Ciphertext stored for client {client_id} with tag {tag}.")
@@ -59,7 +90,6 @@ class ComputingServer:
 
                 if data is None:
                     print('[ComputeServer] No data received.')
-                    print(sk)
                     try:
                         result = self.apply_fe_key(pk, sk, tag)
                     except Exception as e:
