@@ -60,7 +60,7 @@ class Client:
 
         return cipher
     
-    def request_result(self, tag, function=None, additional_data=None,):
+    def request_result(self, tag, function, additional_data=None,):
         # Création de la requête pour récupéré la clé fonctionnel
         req = {
             'type': 'get_func_key',
@@ -80,6 +80,9 @@ class Client:
             print(f"[Client {self.client_id}] Clés reçues avec succès.") 
 
         # Création de la requête pour l'envoie des données chiffrés
+        if not isinstance(function, str):
+            function = None
+
         req = {
             'type': 'func_key',
             'pk': self.pub_key,
