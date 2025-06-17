@@ -1,5 +1,9 @@
 # Database
 encrypted_data.db
+# keys
+keys/
+# certs
+certs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
