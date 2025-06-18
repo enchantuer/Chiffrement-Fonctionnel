@@ -74,7 +74,7 @@ class ComputingServer:
                     self.save_data(client_id, tag, data)
                 except sqlite3.IntegrityError as e:
                     conn.sendall(pickle.dumps({'status': 'error', 'message': f'The client {client_id} has already stored data with tag {tag}'}))
-                    print(f"[ComputeServer] Ciphertext already for client {client_id} with tag {tag}.")
+                    print(f"[ComputeServer] Ciphertext already stored for client {client_id} with tag {tag}.")
                     return
                 conn.sendall(pickle.dumps({'status': 'ok'}))
                 print(f"[ComputeServer] Ciphertext stored for client {client_id} with tag {tag}.")

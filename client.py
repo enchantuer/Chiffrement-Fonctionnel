@@ -34,7 +34,7 @@ class Client:
 
                 response = pickle.loads(ssock.recv(16384))
                 if response.get('status') != 'ok':
-                    print("Erreur lors de la récupération des clés depuis le serveur de confiance")
+                    print("[Client] Erreur lors de la récupération des clés depuis le serveur de confiance")
 
                 self.pub_key = response['pub_key']
                 self.enc_key = response['enc_key']
@@ -43,7 +43,7 @@ class Client:
     def encrypt_and_send(self, data, tag):
         cipher = FeDamgardMultiClient.encrypt(data, tag, self.enc_key, self.pub_key)
         if cipher is None:
-            print("Le chiffrement a échoué (cispher est None)")
+            print("[Client] Le chiffrement a échoué (cispher est None)")
         
         # Création de la requête pour l'envoie des données chiffrés
         req = {
@@ -58,7 +58,7 @@ class Client:
 
                 response = pickle.loads(ssock.recv(4096))
                 if response.get('status') != 'ok':
-                    print(f"Erreur serveur : {response.get('message')}")
+                    print(f"[Client] Erreur serveur : {response.get('message')}")
                 print(f"[Client] Données envoyées avec succès au serveur.")
 
         return cipher
@@ -77,7 +77,7 @@ class Client:
 
                 response = pickle.loads(ssock.recv(4096))
                 if response.get('status') != 'ok':
-                    print("Erreur lors de la récupération de la clé depuis le serveur de confiance")
+                    print("[Client] Erreur lors de la récupération de la clé depuis le serveur de confiance")
                     return
 
                 sk = response.get('func_key')
@@ -101,7 +101,7 @@ class Client:
 
                 response = pickle.loads(ssock.recv(4096))
                 if response.get('status') != 'ok':
-                    print(f"Erreur serveur : {response.get('message')}")
+                    print(f"[Client] Erreur serveur : {response.get('message')}")
 
                 result = response.get('result')
                 print(f"[Client] Résultat reçu : {result}")
