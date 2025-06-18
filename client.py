@@ -11,9 +11,6 @@ CA = 'certs/ca/ca.cert'
 
 class Client:
     def __init__(self, certfile, keyfile, trust_serveur=TRUST_SERVER, computing_server=COMPUTING_SERVER, ca=CA):
-        self.pub_key = None
-        self.enc_key = None
-
         # Socket
         self.t_server = trust_serveur
         self.c_server = computing_server
@@ -21,6 +18,10 @@ class Client:
         self.context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=ca)
         self.context.load_cert_chain(certfile=certfile, keyfile=keyfile)
         self.context.check_hostname = True
+
+        self.pub_key = None
+        self.enc_key = None
+        self.get_keys()
 
     def get_keys(self):
         # Création de la requête pour la réception de la clé publique du serveur de confiance et de la clé de chiffrement du client
@@ -70,7 +71,6 @@ class Client:
             'function': function
         }
 
-
         with socket.create_connection(self.t_server) as sock:
             with self.context.wrap_socket(sock, server_hostname=self.t_server[0]) as ssock:
                 ssock.sendall(pickle.dumps(req))
@@ -84,6 +84,8 @@ class Client:
                 print(f"[Client] Clés reçues avec succès.")
 
         # Création de la requête pour l'envoie des données chiffrés
+        if(function=="sum"):
+            function=None
         req = {
             'type': 'func_key',
             'pk': self.pub_key,

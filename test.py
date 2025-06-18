@@ -25,9 +25,6 @@ if __name__ == "__main__":
     client0 = Client('certs/clients/0/client.cert', 'certs/clients/0/client.key')
     client1 = Client('certs/clients/1/client.cert', 'certs/clients/1/client.key')
 
-    client0.get_keys()
-    client1.get_keys()
-
     # === Données de test (vecteurs) ===
     data_client0 = [100, 150, 200]
     data_client1 = [300, 350, 400]
@@ -38,4 +35,5 @@ if __name__ == "__main__":
 
     # === Le client 0 demande la somme des vecteurs ===
     result = client0.request_result(tag=tag, function=[[1 for _ in range(vector_size)] for _ in range(n_clients)])
+    result = client0.request_result(tag=tag, function="sum")
     print(f"\nRésultat reçu du serveur de calcul (somme vectorielle) : {result}")
