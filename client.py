@@ -68,8 +68,10 @@ class Client:
         # Création de la requête pour récupéré la clé fonctionnel
         req = {
             'type': 'get_func_key',
-            'function': function
-        }
+            'function': function,
+        } 
+        if additional_data is not None:
+            req['additional_data'] = additional_data
 
         with socket.create_connection(self.t_server) as sock:
             with self.context.wrap_socket(sock, server_hostname=self.t_server[0]) as ssock:
