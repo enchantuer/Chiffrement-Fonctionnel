@@ -16,10 +16,10 @@ Bibliothèque cryptographique PyMIFE (https://github.com/MechFroG88/PyMIFE):
 ```bash
 pip install pymife
 ```
-Pour le script des certificats OpenSSL est nécessaire
+Pour le script des certificats, OpenSSL est nécessaire
 ### Installation du projet
 ```bash
-git clone https://github.com/enchantuer/Chiffrement-Fonctionnel
+git https://github.com/enchantuer/Chiffrement-Fonctionnel.git
 ```
 ```bash
 ./certs_gen.bat
@@ -43,6 +43,8 @@ chiffrement-fonctionnel/
 ```
 
 ## Utilisation
-Pour tester notre plateforme en locale, il y a le fichier *test.py* qui permet de créer le serveur de calcul et de confiance ainsi que de les lancer. Les clients peuvent aussi y être créer et les données envoyer pour être calculées. Sur ce fichier, il est possible de rajouter des clients et des données (en modifiant le serveur de confiance), ainsi que de demander plusieurs opérations sur les données chiffrés.
+Pour tester notre plateforme en locale, il y a le fichier *test.py* qui permet de créer le serveur de calcul et de confiance ainsi que de les lancer. Les clients y sont aussi créés et les données envoyer pour être calculées. Sur ce fichier, il est possible de rajouter des clients et des données (en modifiant le serveur de confiance), ainsi que de demander plusieurs opérations sur les données chiffrées.
 
-Pour une utilisation non locale, il faut juste modifier les adresses IP et ports des serveurs et les lancés indépendament. Ainsi différents clients (sur différentes machines) peuvent leurs faire des requêtes et utiliser notre plateforme pour calculer des statistiques sur leurs données sensibles.
+Pour une utilisation non locale, il faut modifier les adresses IP et ports des serveurs et les lancées. Ainsi différents clients (sur différentes machines) peuvent leurs faire des requêtes et utiliser notre plateforme pour calculer des statistiques sur leurs données sensibles.
+
+Attention a bien preciser les IP et les ports des serveurs lors de l'instanciation des clients si ces derniers ont été modifiés.
