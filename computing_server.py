@@ -16,7 +16,7 @@ PORT = 1567
 
 CERTFILE = 'certs/computing_server/server.cert'
 KEYFILE = 'certs/computing_server/server.key'
-CA = 'certs/ca/root.cert'
+CA = 'certs/ca/ca.cert'
 
 def extract_client_id(cn: str) -> str | None:
     match = re.fullmatch(r"client_(\w+)", cn)

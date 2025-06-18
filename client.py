@@ -7,7 +7,7 @@ import ssl
 TRUST_SERVER = ('localhost', 1560)
 COMPUTING_SERVER = ('localhost', 1567)
 
-CA = 'certs/ca/root.cert'
+CA = 'certs/ca/ca.cert'
 
 class Client:
     def __init__(self, certfile, keyfile, trust_serveur=TRUST_SERVER, computing_server=COMPUTING_SERVER, ca=CA):

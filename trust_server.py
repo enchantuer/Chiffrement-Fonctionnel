@@ -11,9 +11,9 @@ import re
 HOST = 'localhost'
 PORT = 1560
 
-CERTFILE = 'certs/computing_server/server.cert'
-KEYFILE = 'certs/computing_server/server.key'
-CA = 'certs/ca/root.cert'
+CERTFILE = 'certs/trust_server/server.cert'
+KEYFILE = 'certs/trust_server/server.key'
+CA = 'certs/ca/ca.cert'
 
 KEYS = "keys/"
 
