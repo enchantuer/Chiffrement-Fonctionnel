@@ -21,9 +21,9 @@ class Client:
 
         self.pub_key = None
         self.enc_key = None
-        self.get_keys()
+        self._get_keys()
 
-    def get_keys(self):
+    def _get_keys(self):
         # Création de la requête pour la réception de la clé publique du serveur de confiance et de la clé de chiffrement du client
         req = {
             'type': 'get_keys'
