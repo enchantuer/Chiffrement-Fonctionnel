@@ -29,8 +29,8 @@ if __name__ == "__main__":
     data_client0 = [100, 150, 200]
     data_client1 = [300, 350, 400]
     # === Données de test (for correlation) ===
-    y_client0 = [80, 120, 160]
-    y_client1 = [280, 320, 360]
+    y0 = [80, 120, 160]
+    y1 = [280, 320, 360]
 
     # Chaque client chiffre et envoie son vecteur
     client0.encrypt_and_send(data_client0, tag)
@@ -41,5 +41,5 @@ if __name__ == "__main__":
     print(f"\nRésultat reçu du serveur de calcul (fonction custom : somme) : {result}")
     result = client0.request_result(tag=tag, function="mean", additional_data=6)
     print(f"\nRésultat reçu du serveur de calcul (moyenne) : {result}")
-    result = client0.request_result(tag=tag, function="correlation", additional_data=[y_client0, y_client1])
+    result = client0.request_result(tag=tag, function="correlation", additional_data=[y0, y1])
     print(f"\nRésultat reçu du serveur de calcul (correlation) : {result}")
