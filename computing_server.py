@@ -104,8 +104,8 @@ class ComputingServer:
                     function = data['function']
                     if function == "mean":
                         try:
-                            result = self.mean(pk, sk, tag)
-                        except Exception as e:
+                            result = self.mean(pk, sk, data['additional'], tag)
+                        except:
                             conn.sendall(pickle.dumps({'status': 'error', 'message': 'Error while computing mean function'}))
                             return
                         conn.sendall(pickle.dumps({'status': 'ok', 'result': result}))
@@ -113,9 +113,8 @@ class ComputingServer:
                     elif function == "correlation":
                         try:
                             result = self.correlation(pk, sk, data['additional'], tag)
-                        except Exception as e:
+                        except:
                             conn.sendall(pickle.dumps({'status': 'error', 'message': 'Error while computing correlation function'}))
-                            print(e)
                             return
                         conn.sendall(pickle.dumps({'status': 'ok', 'result': result}))
                         return
@@ -170,13 +169,13 @@ class ComputingServer:
         result = FeDamgardMultiClient.decrypt(data, pk, sk, bound)
         return result
 
-    def mean(self, pk, sk, tag: bytes, bound = (0, 2000)):
+    def mean(self, pk, sk, m, tag: bytes, bound = (0, 2000)):
         data = self._get_data_by_tag(tag)
         # Effectuer le déchiffrement fonctionnel
         result = FeDamgardMultiClient.decrypt(data, pk, sk, bound)
-        return result / len(data)
+        return result / m
 
-    def correlation(self, pk, sks: tuple[Any, Any, Any], y, tag: bytes,bound = (0, 10**6)):
+    def correlation(self, pk, sks: tuple[Any, Any], y, tag: bytes,bound = (0, 10**6)):
         m = len(y)*len(y[0])
 
         mean_y = sum(sum(vec) for vec in y) / m

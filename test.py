@@ -39,7 +39,7 @@ if __name__ == "__main__":
     # === Le client 0 demande la somme des vecteurs ===
     result = client0.request_result(tag=tag, function=[[1 for _ in range(vector_size)] for _ in range(n_clients)])
     print(f"\nRésultat reçu du serveur de calcul (fonction custom : somme) : {result}")
-    result = client0.request_result(tag=tag, function="mean")
+    result = client0.request_result(tag=tag, function="mean", additional_data=6)
     print(f"\nRésultat reçu du serveur de calcul (moyenne) : {result}")
     result = client0.request_result(tag=tag, function="correlation", additional_data=[y_client0, y_client1])
     print(f"\nRésultat reçu du serveur de calcul (correlation) : {result}")
