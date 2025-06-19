@@ -69,10 +69,11 @@ class ComputingServer:
             print(f"[ComputeServer] Client : {client_id}, req['type'] = {req['type']}")
             if req['type'] == 'ciphertext':
                 tag = req.get('tag')
-                data = req.get('data')
+                data = pickle.loads(req.get('data'))
                 try:
-                    self.save_data(client_id, tag, data)
-                except sqlite3.IntegrityError as e:
+                    self.save_data(client_id, tag, pickle.dumps(data[0]))
+                    self.save_data(client_id, tag+b"_square", pickle.dumps(data[1]))
+                except sqlite3.IntegrityError:
                     conn.sendall(pickle.dumps({'status': 'error', 'message': f'The client {client_id} has already stored data with tag {tag}'}))
                     print(f"[ComputeServer] Ciphertext already stored for client {client_id} with tag {tag}.")
                     return
@@ -114,6 +115,7 @@ class ComputingServer:
                             result = self.correlation(pk, sk, data['additional'], tag)
                         except Exception as e:
                             conn.sendall(pickle.dumps({'status': 'error', 'message': 'Error while computing correlation function'}))
+                            print(e)
                             return
                         conn.sendall(pickle.dumps({'status': 'ok', 'result': result}))
                         return
@@ -174,17 +176,20 @@ class ComputingServer:
         result = FeDamgardMultiClient.decrypt(data, pk, sk, bound)
         return result / len(data)
 
-    def correlation(self, pk, sks: tuple[Any, Any, Any], data: tuple[int, int], tag: bytes,bound = (0, 2000)):
-        mean_y, yy = data
+    def correlation(self, pk, sks: tuple[Any, Any, Any], y, tag: bytes,bound = (0, 10**6)):
+        m = len(y)*len(y[0])
+
+        mean_y = sum(sum(vec) for vec in y) / m
+        yy = sum(value**2 for vec in y for value in vec)
+
         data = self._get_data_by_tag(tag)
+        data_square = self._get_data_by_tag(tag+b"_square")
 
         xy = FeDamgardMultiClient.decrypt(data, pk, sks[0], bound)
-        xx = FeDamgardMultiClient.decrypt(data, pk, sks[1], bound)
-        sum = FeDamgardMultiClient.decrypt(data, pk, sks[2], bound)
+        xx = FeDamgardMultiClient.decrypt(data_square, pk, sks[1], bound)
+        sum_x = FeDamgardMultiClient.decrypt(data, pk, sks[1], bound)
 
-        m = len(data)
-
-        mean_x = sum / m
+        mean_x = sum_x / m
         numerator = xy - (m * mean_x * mean_y)
         denominator = ((xx - m * mean_x**2) * (yy - m * mean_y**2))**0.5
 

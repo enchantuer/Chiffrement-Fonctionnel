@@ -45,12 +45,15 @@ class Client:
         cipher = FeDamgardMultiClient.encrypt(data, tag, self.enc_key, self.pub_key)
         if cipher is None:
             print("[Client] Le chiffrement a échoué (cispher est None)")
+        cipher_square = FeDamgardMultiClient.encrypt(list(map(lambda i: i**2, data)), tag, self.enc_key, self.pub_key)
+        if cipher is None:
+            print("[Client] Le chiffrement a échoué (cispher est None)")
         
         # Création de la requête pour l'envoie des données chiffrés
         req = {
             'type': 'ciphertext',
             'tag': tag,
-            'data': pickle.dumps(cipher) 
+            'data': pickle.dumps((cipher, cipher_square))
         }
 
         with socket.create_connection(self.c_server) as sock:

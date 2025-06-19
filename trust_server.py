@@ -89,7 +89,7 @@ class TrustServer:
                         elif function == "mean":
                             key = self.get_mean_key()
                         elif function == "correlation":
-                            key = self.get_correlation_keys()
+                            key = self.get_correlation_keys(req.get('additional_data'))
                         else:
                             return
                     else:
@@ -202,7 +202,8 @@ class TrustServer:
         """Génère la clé pour calculer une moyenne"""
         return self.get_sum_key()  # Même clé, division après
 
-    def get_correlation_keys(self):
+    def get_correlation_keys(self, y):
         """Génère les 3 clés nécessaires pour calculer une corrélation"""
-        # Retourne (xy_key, xx_key, sum_key)
+        return self.functional_keygen(y), self.get_sum_key()
+        # return self.get_sum_key(), self.get_sum_key()
         pass

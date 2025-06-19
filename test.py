@@ -28,6 +28,9 @@ if __name__ == "__main__":
     # === Données de test (vecteurs) ===
     data_client0 = [100, 150, 200]
     data_client1 = [300, 350, 400]
+    # === Données de test (for correlation) ===
+    y_client0 = [80, 120, 160]
+    y_client1 = [280, 320, 360]
 
     # Chaque client chiffre et envoie son vecteur
     client0.encrypt_and_send(data_client0, tag)
@@ -35,5 +38,8 @@ if __name__ == "__main__":
 
     # === Le client 0 demande la somme des vecteurs ===
     result = client0.request_result(tag=tag, function=[[1 for _ in range(vector_size)] for _ in range(n_clients)])
-    result = client0.request_result(tag=tag, function="sum")
-    print(f"\nRésultat reçu du serveur de calcul (somme vectorielle) : {result}")
+    print(f"\nRésultat reçu du serveur de calcul (fonction custom : somme) : {result}")
+    result = client0.request_result(tag=tag, function="mean")
+    print(f"\nRésultat reçu du serveur de calcul (moyenne) : {result}")
+    result = client0.request_result(tag=tag, function="correlation", additional_data=[y_client0, y_client1])
+    print(f"\nRésultat reçu du serveur de calcul (correlation) : {result}")
